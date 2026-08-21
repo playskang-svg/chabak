@@ -64,7 +64,8 @@ const Map = ({ itinerary, activePoint, setActivePoint, visitedPoints, selectedRo
   // CartoDB Voyager (Beautiful, good localization): 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
 
   // Extract selected points coordinates for the polyline
-  const allPoints = itinerary.flatMap(day => day.points);
+  // 마커 배지에 일차 숫자를 찍으려면 상위 day 객체의 값을 각 포인트에 붙여야 합니다.
+  const allPoints = itinerary.flatMap(day => day.points.map(point => ({ ...point, day: day.day })));
   const polylineCoords = allPoints
     .filter(p => selectedRoutePoints.includes(p.id))
     .map(p => p.coords);

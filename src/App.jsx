@@ -1,33 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Map from './components/Map';
 import ItineraryPanel from './components/ItineraryPanel';
 import { itinerary as initialItinerary } from './data/itinerary';
 import { Map as MapIcon, X } from 'lucide-react';
+
+const STORAGE_FULL_MESSAGE =
+  '브라우저 저장 공간이 가득 차 변경 사항을 저장하지 못했습니다.\n사진 몇 장을 삭제한 뒤 다시 시도해 주세요.';
+
+// 저장된 값이 손상되었거나 localStorage 접근이 막혀도 앱이 멈추지 않도록 기본값으로 되돌립니다.
+const loadState = (key, fallback) => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+// 저장 실패(주로 사진 때문에 발생하는 용량 초과)를 예외 대신 false로 알려줍니다.
+const saveState = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 function App() {
   const [activePoint, setActivePoint] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileMap, setShowMobileMap] = useState(false);
   
-  // Load itinerary from localStorage, fallback to initialItinerary
+  // 저장된 여정을 불러오되, 시설 정보가 없는 옛 데이터라면 최신 기본 여정으로 교체합니다.
   const [itineraryState, setItineraryState] = useState(() => {
-    const saved = localStorage.getItem('itineraryState');
-    return saved ? JSON.parse(saved) : initialItinerary;
+    const saved = loadState('itineraryState', null);
+    if (!saved) return initialItinerary;
+    const stayPoint = saved[0]?.points?.find(p => p.type === 'stay');
+    if (stayPoint && !stayPoint.facilities) return initialItinerary;
+    return saved;
   });
 
-  const [visitedPoints, setVisitedPoints] = useState(() => {
-    const saved = localStorage.getItem('visitedPoints');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [visitedPoints, setVisitedPoints] = useState(() => loadState('visitedPoints', []));
 
-  const [memos, setMemos] = useState(() => {
-    const saved = localStorage.getItem('itineraryMemos');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [memos, setMemos] = useState(() => loadState('itineraryMemos', {}));
 
   const [checklist, setChecklist] = useState(() => {
-    const saved = localStorage.getItem('itineraryChecklist');
-    const parsed = saved ? JSON.parse(saved) : null;
+    const parsed = loadState('itineraryChecklist', null);
     if (parsed && parsed.length > 0 && parsed[0].category) {
       return parsed; // already migrated
     }
@@ -43,51 +62,46 @@ function App() {
     ];
   });
 
-  const [photos, setPhotos] = useState(() => {
-    const saved = localStorage.getItem('itineraryPhotos');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [photos, setPhotos] = useState(() => loadState('itineraryPhotos', {}));
 
   const [selectedRoutePoints, setSelectedRoutePoints] = useState(() => {
-    const saved = localStorage.getItem('itinerarySelectedRoute');
-    if (saved) return JSON.parse(saved);
+    const saved = loadState('itinerarySelectedRoute', null);
+    if (saved) return saved;
     // 기본적으로 모든 포인트 ID를 선택 상태로 초기화
     return initialItinerary.flatMap(day => day.points.map(p => p.id));
   });
 
-  // Force sync itinerary to apply new data if no facilities are present in day1 stay
-  useEffect(() => {
-    if (itineraryState[0] && itineraryState[0].points) {
-      const stayPoint = itineraryState[0].points.find(p => p.type === 'stay');
-      if (stayPoint && !stayPoint.facilities) {
-        setItineraryState(initialItinerary);
-      }
-    }
-  }, [itineraryState]);
+  // 저장에 실패하면 세션당 한 번만 알립니다. (effect 안에서 setState를 호출하지 않도록 ref 사용)
+  const quotaAlerted = useRef(false);
+  const persist = (key, value) => {
+    if (saveState(key, value) || quotaAlerted.current) return;
+    quotaAlerted.current = true;
+    alert(STORAGE_FULL_MESSAGE);
+  };
 
   // Persist states
   useEffect(() => {
-    localStorage.setItem('itineraryState', JSON.stringify(itineraryState));
+    persist('itineraryState', itineraryState);
   }, [itineraryState]);
 
   useEffect(() => {
-    localStorage.setItem('visitedPoints', JSON.stringify(visitedPoints));
+    persist('visitedPoints', visitedPoints);
   }, [visitedPoints]);
 
   useEffect(() => {
-    localStorage.setItem('itineraryMemos', JSON.stringify(memos));
+    persist('itineraryMemos', memos);
   }, [memos]);
 
   useEffect(() => {
-    localStorage.setItem('itineraryChecklist', JSON.stringify(checklist));
+    persist('itineraryChecklist', checklist);
   }, [checklist]);
 
   useEffect(() => {
-    localStorage.setItem('itineraryPhotos', JSON.stringify(photos));
+    persist('itineraryPhotos', photos);
   }, [photos]);
 
   useEffect(() => {
-    localStorage.setItem('itinerarySelectedRoute', JSON.stringify(selectedRoutePoints));
+    persist('itinerarySelectedRoute', selectedRoutePoints);
   }, [selectedRoutePoints]);
 
   const toggleVisit = (id) => {
@@ -137,19 +151,19 @@ function App() {
   };
 
   const deletePoint = (dayIndex, pointId) => {
-    setItineraryState(prev => {
-      const newState = [...prev];
-      newState[dayIndex].points = newState[dayIndex].points.filter(p => p.id !== pointId);
-      return newState;
-    });
+    setItineraryState(prev => prev.map((day, idx) =>
+      idx === dayIndex
+        ? { ...day, points: day.points.filter(p => p.id !== pointId) }
+        : day
+    ));
   };
 
   const addPointToDay = (dayIndex, point) => {
-    setItineraryState(prev => {
-      const newState = [...prev];
-      newState[dayIndex].points.push(point);
-      return newState;
-    });
+    setItineraryState(prev => prev.map((day, idx) =>
+      idx === dayIndex
+        ? { ...day, points: [...day.points, point] }
+        : day
+    ));
   };
 
   // Image compression & upload handler

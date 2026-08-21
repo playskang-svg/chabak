@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, X } from 'lucide-react';
+import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save } from 'lucide-react';
 
 const ItineraryPanel = ({ 
   itinerary,
@@ -51,13 +51,15 @@ const ItineraryPanel = ({
 
   // Filter itinerary based on search query
   const filteredItinerary = useMemo(() => {
-    if (!searchQuery.trim()) return itinerary;
+    // 편집/삭제는 원본 itinerary의 인덱스를 써야 하므로 필터링 전에 붙여 둡니다.
+    const indexedItinerary = itinerary.map((day, dayIndex) => ({ ...day, dayIndex }));
+    if (!searchQuery.trim()) return indexedItinerary;
     const lowerQuery = searchQuery.toLowerCase();
     
-    return itinerary.map(day => {
+    return indexedItinerary.map(day => {
       const filteredPoints = day.points.filter(point => 
-        point.name.toLowerCase().includes(lowerQuery) || 
-        point.desc.toLowerCase().includes(lowerQuery) ||
+        (point.name || '').toLowerCase().includes(lowerQuery) || 
+        (point.desc || '').toLowerCase().includes(lowerQuery) ||
         (point.tips && point.tips.toLowerCase().includes(lowerQuery)) ||
         (memos[point.id] && memos[point.id].toLowerCase().includes(lowerQuery))
       );
@@ -204,7 +206,7 @@ const ItineraryPanel = ({
         {filteredItinerary.length === 0 ? (
           <div className="empty-search">검색 결과가 없거나 일정이 비어있습니다.</div>
         ) : (
-          filteredItinerary.map((day, dayIndex) => (
+          filteredItinerary.map((day) => (
             <div key={day.day} className="day-section">
               <h2 className="day-title">{day.title}</h2>
               
@@ -247,7 +249,7 @@ const ItineraryPanel = ({
                         />
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
                           <button onClick={() => setEditingPointId(null)} className="btn-cancel">취소</button>
-                          <button onClick={() => saveEditingPoint(dayIndex, point.id)} className="btn-save"><Save size={14}/> 저장</button>
+                          <button onClick={() => saveEditingPoint(day.dayIndex, point.id)} className="btn-save"><Save size={14}/> 저장</button>
                         </div>
                       </div>
                     ) : (
@@ -273,7 +275,7 @@ const ItineraryPanel = ({
                             {isEditMode && (
                               <div className="edit-actions" onClick={(e) => e.stopPropagation()}>
                                 <button onClick={() => startEditingPoint(point)} className="icon-btn edit"><Edit3 size={14}/></button>
-                                <button onClick={() => deletePoint(dayIndex, point.id)} className="icon-btn delete"><Trash2 size={14}/></button>
+                                <button onClick={() => deletePoint(day.dayIndex, point.id)} className="icon-btn delete"><Trash2 size={14}/></button>
                               </div>
                             )}
                           </div>
