@@ -88,7 +88,7 @@ function App() {
         className={`mobile-map-toggle ${showMobileMap ? 'active' : ''}`}
         onClick={() => setShowMobileMap(!showMobileMap)}
       >
-        {showMobileMap ? <><X size={20}/> 닫기</> : <><MapIcon size={20}/> 지도 보기</>}
+        {showMobileMap ? <><X size={20}/> 닫기</> : <><MapIcon size={20}/> 전체 여정</>}
       </button>
     </div>
   );
