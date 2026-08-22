@@ -98,3 +98,28 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 }
+
+/* 전체 여정 보기 버튼 (지도 우상단) */
+.map-fit-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #374151;
+  border: 1px solid #E5E7EB;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s;
+}
+.map-fit-btn:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
