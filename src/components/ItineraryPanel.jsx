@@ -1,10 +1,17 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack } from 'lucide-react';
+import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack, Menu, X, Send, MessageCircleQuestion } from 'lucide-react';
 
 // 준비물 원본은 UpNote 공유 노트에서 관리합니다.
 const PACKING_NOTE_URL = 'https://getupnote.com/share/notes/g7PMwusXenRBTR9rjTupYw2z7QU2/01A0269E-9438-753E-B8BF-A840C41BF3A6';
 
+const EV_CHARGER_URL = 'https://map.kakao.com/?q=전기차충전소';
+
 const ItineraryPanel = ({ 
+  config,
+  placeAnswers,
+  askAboutPlace,
+  aiBusy,
+  onOpenSettings,
   itinerary,
   activePoint, 
   setActivePoint, 
@@ -37,6 +44,24 @@ const ItineraryPanel = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingPointId, setEditingPointId] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', desc: '' });
+
+  // 헤더 액션은 버튼을 늘리는 대신 메뉴 하나로 모았습니다.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [qaDrafts, setQaDrafts] = useState({});
+  const [qaErrors, setQaErrors] = useState({});
+
+  const handleAsk = async (event, point) => {
+    event.preventDefault();
+    const question = (qaDrafts[point.id] ?? '').trim();
+    if (!question) return;
+    setQaErrors(prev => ({ ...prev, [point.id]: null }));
+    try {
+      await askAboutPlace(point, question);
+      setQaDrafts(prev => ({ ...prev, [point.id]: '' }));
+    } catch (err) {
+      setQaErrors(prev => ({ ...prev, [point.id]: err.message }));
+    }
+  };
 
   // Scroll to active item when selected from map
   useEffect(() => {
@@ -92,48 +117,41 @@ const ItineraryPanel = ({
     <div className="panel-container">
       <div className="panel-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1>🐾 아토와 차박여행</h1>
-          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-            <a 
-              href="https://map.kakao.com/?q=전기차충전소"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="header-icon-btn"
-              title="EV 충전소 찾기"
-              style={{ color: '#FDE047' }}
+          <h1>{config.title}</h1>
+          <div className="header-menu-wrap">
+            <button
+              className={`header-icon-btn ${menuOpen ? 'active-edit' : ''}`}
+              onClick={() => setMenuOpen(!menuOpen)}
+              title="메뉴"
             >
-              <Zap size={22} fill="currentColor" />
-            </a>
-            <a
-              href={PACKING_NOTE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="header-icon-btn"
-              title="준비물 확인 (UpNote 노트)"
-            >
-              <Backpack size={22} />
-            </a>
-            <button 
-              className="header-icon-btn" 
-              onClick={() => setShowChecklist(!showChecklist)}
-              title="준비물 체크리스트"
-            >
-              <ListTodo size={24} />
+              {menuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
-            <button 
-              className={`header-icon-btn ${isEditMode ? 'active-edit' : ''}`}
-              onClick={() => {
-                setIsEditMode(!isEditMode);
-                setEditingPointId(null);
-              }}
-              title="여정 편집 모드"
-              style={isEditMode ? { background: '#FCA5A5', color: '#7F1D1D' } : {}}
-            >
-              <Settings size={22} />
-            </button>
+
+            {menuOpen && (
+              <>
+                <div className="header-menu-catcher" onClick={() => setMenuOpen(false)} />
+                <div className="header-menu">
+                  <a href={EV_CHARGER_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
+                    <Zap size={16} /> EV 충전소 찾기
+                  </a>
+                  <a href={PACKING_NOTE_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
+                    <Backpack size={16} /> 준비물 노트 (UpNote)
+                  </a>
+                  <button onClick={() => { setShowChecklist(!showChecklist); setMenuOpen(false); }}>
+                    <ListTodo size={16} /> 준비물 체크리스트 {showChecklist ? '닫기' : '열기'}
+                  </button>
+                  <button onClick={() => { setIsEditMode(!isEditMode); setEditingPointId(null); setMenuOpen(false); }}>
+                    <Edit3 size={16} /> 여정 편집 {isEditMode ? '끄기' : '켜기'}
+                  </button>
+                  <button onClick={() => { onOpenSettings(); setMenuOpen(false); }}>
+                    <Settings size={16} /> 설정 · AI로 일정 만들기
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
-        <p>천안 → 영덕 → 울진 → 속초 → 단양 · 4박 5일 (EV6 & 보더콜리 아토 🐶)</p>
+        <p>{config.subtitle}</p>
         
         {/* Progress Bar */}
         <div className="progress-container">
@@ -170,13 +188,13 @@ const ItineraryPanel = ({
                 className={`tab-btn ${activeChecklistTab === 'human' ? 'active' : ''}`}
                 onClick={() => setActiveChecklistTab('human')}
               >
-                🙋‍♂️ 내 짐
+                {config.checklistLabels.human}
               </button>
               <button 
                 className={`tab-btn ${activeChecklistTab === 'dog' ? 'active' : ''}`}
                 onClick={() => setActiveChecklistTab('dog')}
               >
-                🐶 아토 짐
+                {config.checklistLabels.dog}
               </button>
             </div>
 
@@ -200,7 +218,7 @@ const ItineraryPanel = ({
             <form onSubmit={handleAddChecklist} className="checklist-form">
               <input 
                 type="text" 
-                placeholder={`${activeChecklistTab === 'human' ? '내' : '아토'} 준비물 추가...`}
+                placeholder={`${config.checklistLabels[activeChecklistTab]} 추가...`}
                 value={newChecklistText}
                 onChange={(e) => setNewChecklistText(e.target.value)}
               />
@@ -381,6 +399,36 @@ const ItineraryPanel = ({
                             ))}
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* 이 장소에 대한 질문. 답은 서버에서 만들어 모두에게 공유됩니다. */}
+                    {!isEditingThisPoint && (
+                      <div className="place-qa-section" onClick={(e) => e.stopPropagation()}>
+                        <span className="qa-title"><MessageCircleQuestion size={14} /> 이 곳 궁금한 점</span>
+
+                        {(placeAnswers[point.id] ?? []).map((entry) => (
+                          <div key={entry.id} className="qa-entry">
+                            <p className="qa-question">Q. {entry.question}</p>
+                            <p className="qa-answer">{entry.answer}</p>
+                          </div>
+                        ))}
+
+                        <form className="qa-form" onSubmit={(e) => handleAsk(e, point)}>
+                          <input
+                            type="text"
+                            placeholder="예: 주차 요금 있나요?"
+                            value={qaDrafts[point.id] ?? ''}
+                            onChange={(e) => setQaDrafts((prev) => ({ ...prev, [point.id]: e.target.value }))}
+                            disabled={aiBusy === `ask:${point.id}`}
+                          />
+                          <button type="submit" disabled={aiBusy === `ask:${point.id}`} title="질문하기">
+                            <Send size={14} />
+                          </button>
+                        </form>
+
+                        {aiBusy === `ask:${point.id}` && <p className="qa-status">답을 찾는 중…</p>}
+                        {qaErrors[point.id] && <p className="qa-error">{qaErrors[point.id]}</p>}
                       </div>
                     )}
 

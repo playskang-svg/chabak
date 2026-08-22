@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Map from './components/Map';
 import ItineraryPanel from './components/ItineraryPanel';
+import SettingsModal from './components/SettingsModal';
 import { useSharedTrip } from './hooks/useSharedTrip';
 import { Map as MapIcon, X, AlertTriangle } from 'lucide-react';
 
@@ -8,6 +9,7 @@ function App() {
   const [activePoint, setActivePoint] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileMap, setShowMobileMap] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // 여정·메모·준비물·사진은 모두 공유 저장소에 있습니다. 동행자의 변경은 실시간으로 들어옵니다.
   const trip = useSharedTrip();
@@ -31,7 +33,24 @@ function App() {
         </div>
       )}
 
+      {showSettings && (
+        <SettingsModal
+          config={trip.config}
+          saveConfig={trip.saveConfig}
+          aiPassword={trip.aiPassword}
+          setAiPassword={trip.setAiPassword}
+          aiBusy={trip.aiBusy}
+          generatePlan={trip.generatePlan}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+
       <ItineraryPanel
+        config={trip.config}
+        placeAnswers={trip.placeAnswers}
+        askAboutPlace={trip.askAboutPlace}
+        aiBusy={trip.aiBusy}
+        onOpenSettings={() => setShowSettings(true)}
         itinerary={trip.itineraryState}
         activePoint={activePoint}
         setActivePoint={setActivePoint}
