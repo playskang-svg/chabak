@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
+import Footer from './Footer';
 import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack, Menu, X, Send, MessageCircleQuestion, Download } from 'lucide-react';
 
 // 준비물 원본은 UpNote 공유 노트에서 관리합니다.
@@ -523,7 +524,7 @@ const ItineraryPanel = ({
           ))
         )}
         
-        <div style={{ height: '50px' }}></div>
+        <Footer />
       </div>
     </div>
   );
