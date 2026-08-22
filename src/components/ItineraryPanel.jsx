@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save } from 'lucide-react';
+import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack } from 'lucide-react';
+
+// 준비물 원본은 UpNote 공유 노트에서 관리합니다.
+const PACKING_NOTE_URL = 'https://getupnote.com/share/notes/g7PMwusXenRBTR9rjTupYw2z7QU2/01A0269E-9438-753E-B8BF-A840C41BF3A6';
 
 const ItineraryPanel = ({ 
   itinerary,
@@ -90,7 +93,7 @@ const ItineraryPanel = ({
       <div className="panel-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1>🐾 아토와 차박여행</h1>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
             <a 
               href="https://map.kakao.com/?q=전기차충전소"
               target="_blank"
@@ -100,6 +103,15 @@ const ItineraryPanel = ({
               style={{ color: '#FDE047' }}
             >
               <Zap size={22} fill="currentColor" />
+            </a>
+            <a
+              href={PACKING_NOTE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="header-icon-btn"
+              title="준비물 확인 (UpNote 노트)"
+            >
+              <Backpack size={22} />
             </a>
             <button 
               className="header-icon-btn" 
