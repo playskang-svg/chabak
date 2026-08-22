@@ -146,21 +146,23 @@
 }
 
 /* 저장 실패 알림 */
+/* 헤더를 가리지 않도록 아래쪽 토스트로 띄웁니다. */
 .app-error-banner {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  left: 16px;
+  bottom: 16px;
   z-index: 2000;
+  max-width: min(420px, calc(100vw - 32px));
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: #FEE2E2;
   color: #991B1B;
   font-size: 0.85rem;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 .app-error-banner span {
   flex: 1;
@@ -172,4 +174,13 @@
   cursor: pointer;
   display: flex;
   padding: 4px;
+}
+
+/* 모바일에서는 '지도 보기' 버튼과 겹치지 않게 위로 올립니다. */
+@media (max-width: 768px) {
+  .app-error-banner {
+    left: 12px;
+    bottom: 88px;
+    max-width: calc(100vw - 24px);
+  }
 }

@@ -133,7 +133,7 @@ const ItineraryPanel = ({
             </button>
           </div>
         </div>
-        <p>천안 출발 4박 5일 해안선 투어 (EV6 & 보더콜리 아토 🐶)</p>
+        <p>천안 → 영덕 → 울진 → 속초 → 단양 · 4박 5일 (EV6 & 보더콜리 아토 🐶)</p>
         
         {/* Progress Bar */}
         <div className="progress-container">
