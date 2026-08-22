@@ -340,7 +340,7 @@
 .btn-secondary { background: #F3F4F6; color: #374151; }
 .settings-notice,
 .settings-failure {
-  margin-top: 16px;
+  margin-top: 10px;
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 0.85rem;
