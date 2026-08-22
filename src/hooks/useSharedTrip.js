@@ -231,6 +231,7 @@ export function useSharedTrip() {
       .from('chabak_trip_docs')
       .upsert({ key, data, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     report(error, what);
+    return error; // 호출한 쪽이 성공 여부를 화면에 반영할 수 있게 돌려줍니다.
   }, [report]);
 
   const saveItinerary = useCallback((next) => {

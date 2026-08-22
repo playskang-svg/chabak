@@ -5,32 +5,40 @@ const PROMPT_PLACEHOLDER = `예) 천안에서 출발해 3박 4일 남해안 차�
 보더콜리 한 마리와 함께 가고 전기차라 충전소가 필요해요.
 바다가 보이는 조용한 차박지 위주로, 사람 많은 곳은 피하고 싶어요.`;
 
+// 결과는 누른 버튼 바로 옆에 보여야 합니다. 모달 아래쪽에 그리면 스크롤 밖이라 안 보입니다.
+const Result = ({ result }) =>
+  result ? <div className={result.ok ? 'settings-notice' : 'settings-failure'}>{result.text}</div> : null;
+
 const SettingsModal = ({ config, saveConfig, aiPassword, setAiPassword, aiBusy, generatePlan, onClose }) => {
   const [title, setTitle] = useState(config.title);
   const [subtitle, setSubtitle] = useState(config.subtitle);
   const [prompt, setPrompt] = useState(config.prompt ?? '');
   const [password, setPassword] = useState(aiPassword);
-  const [notice, setNotice] = useState(null);
-  const [failure, setFailure] = useState(null);
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [brandingResult, setBrandingResult] = useState(null);
+  const [planResult, setPlanResult] = useState(null);
 
   const generating = aiBusy === 'plan';
 
-  const handleSaveBranding = () => {
-    saveConfig({ title: title.trim() || config.title, subtitle: subtitle.trim() });
-    setNotice('제목과 부제를 저장했습니다.');
-    setFailure(null);
+  const handleSaveBranding = async () => {
+    setBrandingResult(null);
+    setSavingBranding(true);
+    const error = await saveConfig({ title: title.trim() || config.title, subtitle: subtitle.trim() });
+    setSavingBranding(false);
+    setBrandingResult(error
+      ? { ok: false, text: `저장하지 못했습니다: ${error.message}` }
+      : { ok: true, text: '저장했습니다. 상단 제목이 바뀌었는지 확인해 보세요.' });
   };
 
   const handleGenerate = async () => {
-    setNotice(null);
-    setFailure(null);
+    setPlanResult(null);
     setAiPassword(password);
     try {
       const result = await generatePlan(prompt.trim());
-      saveConfig({ prompt: prompt.trim() });
-      setNotice(`새 일정을 만들었습니다 — ${result.days}일 · ${result.points}곳.`);
+      await saveConfig({ prompt: prompt.trim() });
+      setPlanResult({ ok: true, text: `새 일정을 만들었습니다 — ${result.days}일 · ${result.points}곳.` });
     } catch (err) {
-      setFailure(err.message);
+      setPlanResult({ ok: false, text: err.message });
     }
   };
 
@@ -53,9 +61,10 @@ const SettingsModal = ({ config, saveConfig, aiPassword, setAiPassword, aiBusy, 
               <span>부제</span>
               <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="한 줄 요약" />
             </label>
-            <button className="btn-secondary" onClick={handleSaveBranding}>
-              <Save size={14} /> 제목·부제 저장
+            <button className="btn-secondary" onClick={handleSaveBranding} disabled={savingBranding}>
+              <Save size={14} /> {savingBranding ? '저장 중…' : '제목·부제 저장'}
             </button>
+            <Result result={brandingResult} />
           </section>
 
           <section className="settings-section">
@@ -93,10 +102,8 @@ const SettingsModal = ({ config, saveConfig, aiPassword, setAiPassword, aiBusy, 
             <button className="btn-primary" onClick={handleGenerate} disabled={generating || !prompt.trim()}>
               <Sparkles size={16} /> {generating ? '만드는 중… (1분 정도 걸립니다)' : 'AI로 일정 생성'}
             </button>
+            <Result result={planResult} />
           </section>
-
-          {notice && <div className="settings-notice">{notice}</div>}
-          {failure && <div className="settings-failure">{failure}</div>}
         </div>
       </div>
     </div>
