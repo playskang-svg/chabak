@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack, Menu, X, Send, MessageCircleQuestion } from 'lucide-react';
+import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack, Menu, X, Send, MessageCircleQuestion, Download } from 'lucide-react';
 
 // 준비물 원본은 UpNote 공유 노트에서 관리합니다.
 const PACKING_NOTE_URL = 'https://getupnote.com/share/notes/g7PMwusXenRBTR9rjTupYw2z7QU2/01A0269E-9438-753E-B8BF-A840C41BF3A6';
@@ -49,6 +49,27 @@ const ItineraryPanel = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [qaDrafts, setQaDrafts] = useState({});
   const [qaErrors, setQaErrors] = useState({});
+
+  // 사진 주소가 다른 도메인이라 <a download>가 무시됩니다. 직접 받아서 파일로 넘겨야 합니다.
+  const handleSavePhoto = async (photo, point, index) => {
+    const filename = `${point.name.replace(/[\\/:*?"<>|]/g, '')}-${index + 1}.jpg`;
+    try {
+      const response = await fetch(photo.url);
+      if (!response.ok) throw new Error(String(response.status));
+      const href = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // 클릭 직후 바로 해제하면 브라우저가 내려받기를 시작하기 전에 주소가 사라질 수 있습니다.
+      setTimeout(() => URL.revokeObjectURL(href), 60000);
+    } catch {
+      // 내려받기가 막히면 새 탭으로 엽니다. 휴대폰에서는 길게 눌러 사진 앱에 담을 수 있습니다.
+      window.open(photo.url, '_blank', 'noopener');
+    }
+  };
 
   const handleAsk = async (event, point) => {
     event.preventDefault();
@@ -392,7 +413,18 @@ const ItineraryPanel = ({
                             {photos[point.id].map((photo, idx) => (
                               <div key={photo.id} className="photo-card">
                                 <img src={photo.url} alt={`추억 ${idx+1}`} loading="lazy" />
-                                <button className="btn-delete-photo" onClick={() => deletePhoto(point.id, photo.id)}>
+                                <button
+                                  className="btn-save-photo"
+                                  onClick={() => handleSavePhoto(photo, point, idx)}
+                                  title="내 기기에 저장"
+                                >
+                                  <Download size={12} />
+                                </button>
+                                <button
+                                  className="btn-delete-photo"
+                                  onClick={() => deletePhoto(point.id, photo.id)}
+                                  title="사진 삭제"
+                                >
                                   <Trash2 size={12} />
                                 </button>
                               </div>
