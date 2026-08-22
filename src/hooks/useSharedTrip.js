@@ -19,6 +19,15 @@ const LOAD_TIMEOUT = 8000;
 // 실시간 연결이 끊겨 있어도 동행자의 변경을 놓치지 않기 위한 예비 주기
 const REFRESH_INTERVAL = 45000;
 const PHOTO_MAX_WIDTH = 1200;
+const AI_PASSWORD_KEY = 'chabakAiPassword';
+
+// 설정 페이지에서 갈아끼울 수 있는 값들. AI가 일정을 만들면 여기도 함께 바뀝니다.
+export const DEFAULT_CONFIG = {
+  title: '🐾 아토와 차박여행',
+  subtitle: '천안 → 영덕 → 울진 → 속초 → 단양 · 4박 5일 (EV6 & 보더콜리 아토 🐶)',
+  prompt: '',
+  checklistLabels: { human: '🙋‍♂️ 내 짐', dog: '🐶 아토 짐' },
+};
 const PHOTO_QUALITY = 0.75;
 
 const allPointIds = (itinerary) => itinerary.flatMap(day => day.points.map(p => p.id));
@@ -55,13 +64,15 @@ export function useSharedTrip() {
   const [visitedPoints, setVisitedPoints] = useState([]);
   const [checklist, setChecklist] = useState([]);
   const [photos, setPhotos] = useState({});
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const [placeAnswers, setPlaceAnswers] = useState({});
   const [status, setStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState(null);
 
   // 콜백에서 최신 값을 읽기 위한 거울. 렌더 결과에는 쓰지 않습니다.
   const latest = useRef({});
   useEffect(() => {
-    latest.current = { itineraryState, selectedRoutePoints, memos, visitedPoints, checklist, photos };
+    latest.current = { itineraryState, selectedRoutePoints, memos, visitedPoints, checklist, photos, config };
   });
 
   // 저장 대기 중인 메모는 다른 사람의 변경을 받아도 덮어쓰지 않습니다.
@@ -75,6 +86,7 @@ export function useSharedTrip() {
     const nextItinerary = byKey.itinerary ?? initialItinerary;
     setItineraryState(nextItinerary);
     setSelectedRoutePoints(byKey.route ?? allPointIds(nextItinerary));
+    setConfig({ ...DEFAULT_CONFIG, ...(byKey.config ?? {}) });
     return byKey;
   }, []);
 
@@ -117,6 +129,19 @@ export function useSharedTrip() {
     setPhotos(grouped);
   }, []);
 
+  const loadAnswers = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('chabak_place_answers')
+      .select('id, point_id, question, answer')
+      .order('created_at');
+    if (error) throw error;
+    const grouped = {};
+    (data ?? []).forEach(row => {
+      (grouped[row.point_id] ??= []).push(row);
+    });
+    setPlaceAnswers(grouped);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -124,7 +149,7 @@ export function useSharedTrip() {
 
     const loadAll = async () => {
       const [docs, , , items] = await Promise.all([
-        loadDocs(), loadMemos(), loadVisits(), loadChecklist(), loadPhotos(),
+        loadDocs(), loadMemos(), loadVisits(), loadChecklist(), loadPhotos(), loadAnswers(),
       ]);
       if (cancelled) return;
       setStatus('ready');
@@ -158,11 +183,12 @@ export function useSharedTrip() {
       .finally(() => clearTimeout(timer));
 
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos]);
+  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos, loadAnswers]);
 
   const refreshAll = useCallback(() => {
-    Promise.all([loadDocs(), loadMemos(), loadVisits(), loadChecklist(), loadPhotos()]).catch(() => {});
-  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos]);
+    Promise.all([loadDocs(), loadMemos(), loadVisits(), loadChecklist(), loadPhotos(), loadAnswers()])
+      .catch(() => {});
+  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos, loadAnswers]);
 
   // 동행자가 바꾼 내용을 새로고침 없이 받아옵니다.
   useEffect(() => {
@@ -174,10 +200,11 @@ export function useSharedTrip() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chabak_visits' }, reload(loadVisits))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chabak_checklist_items' }, reload(loadChecklist))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chabak_photos' }, reload(loadPhotos))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chabak_place_answers' }, reload(loadAnswers))
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos]);
+  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos, loadAnswers]);
 
   // 실시간 연결이 막힌 망에서도 화면이 뒤처지지 않도록, 보고 있는 동안만 주기적으로 다시 읽습니다.
   useEffect(() => {
@@ -321,9 +348,80 @@ export function useSharedTrip() {
     if (!error && target) await supabase.storage.from(PHOTO_BUCKET).remove([target.path]);
   }, [report]);
 
+  // 생성 암호는 이 브라우저에만 남습니다. 매번 다시 입력하지 않게 하려는 용도입니다.
+  const [aiPassword, setAiPasswordState] = useState(() => {
+    try { return localStorage.getItem(AI_PASSWORD_KEY) ?? ''; } catch { return ''; }
+  });
+  const setAiPassword = useCallback((value) => {
+    setAiPasswordState(value);
+    try { localStorage.setItem(AI_PASSWORD_KEY, value); } catch { /* 저장 못 해도 이번 세션에서는 동작합니다 */ }
+  }, []);
+
+  const [aiBusy, setAiBusy] = useState(null);
+
+  // Edge Function은 실패를 본문에 담아 보내므로, 상태 코드만 보면 이유를 알 수 없습니다.
+  const callAi = useCallback(async (body) => {
+    const { data, error } = await supabase.functions.invoke('chabak-ai', { body });
+    if (!error) return data;
+    let detail = error.message;
+    try {
+      const payload = await error.context?.json();
+      if (payload?.error) detail = payload.error;
+    } catch { /* 본문이 JSON이 아니면 원래 메시지를 씁니다 */ }
+    throw new Error(detail);
+  }, []);
+
+  const saveConfig = useCallback((patch) => {
+    const next = { ...DEFAULT_CONFIG, ...(latest.current.config ?? {}), ...patch };
+    setConfig(next);
+    return saveDoc('config', next, '설정');
+  }, [saveDoc]);
+
+  const generatePlan = useCallback(async (prompt) => {
+    setAiBusy('plan');
+    try {
+      const result = await callAi({ action: 'plan', password: aiPassword, prompt });
+      await refreshAll();
+      return result;
+    } finally {
+      setAiBusy(null);
+    }
+  }, [callAi, aiPassword, refreshAll]);
+
+  const askAboutPlace = useCallback(async (point, question) => {
+    setAiBusy(`ask:${point.id}`);
+    try {
+      const result = await callAi({
+        action: 'ask',
+        password: aiPassword,
+        pointId: point.id,
+        pointName: point.name,
+        pointDesc: point.desc,
+        question,
+      });
+      if (result?.answer) {
+        setPlaceAnswers(prev => ({
+          ...prev,
+          [point.id]: [...(prev[point.id] ?? []), result.answer],
+        }));
+      }
+      return result;
+    } finally {
+      setAiBusy(null);
+    }
+  }, [callAi, aiPassword]);
+
   return {
     status,
     errorMessage,
+    config,
+    saveConfig,
+    placeAnswers,
+    aiPassword,
+    setAiPassword,
+    aiBusy,
+    generatePlan,
+    askAboutPlace,
     dismissError: useCallback(() => setErrorMessage(null), []),
     itineraryState,
     selectedRoutePoints,
