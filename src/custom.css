@@ -98,3 +98,78 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 }
+
+/* 전체 여정 보기 버튼 (지도 우상단) */
+.map-fit-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #374151;
+  border: 1px solid #E5E7EB;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s;
+}
+.map-fit-btn:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* 공유 저장소 로딩 화면 */
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100vh;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  font-weight: 600;
+}
+.app-loading-icon {
+  font-size: 2.5rem;
+  animation: chabak-drive 1.2s ease-in-out infinite alternate;
+}
+@keyframes chabak-drive {
+  from { transform: translateX(-10px); }
+  to { transform: translateX(10px); }
+}
+
+/* 저장 실패 알림 */
+.app-error-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #FEE2E2;
+  color: #991B1B;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.app-error-banner span {
+  flex: 1;
+}
+.app-error-banner button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  padding: 4px;
+}

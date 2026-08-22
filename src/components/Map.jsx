@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Expand } from 'lucide-react';
 import { renderToString } from 'react-dom/server';
 
 // Fix for default marker icons in Leaflet with Vite
@@ -42,6 +42,27 @@ const createCustomIcon = (point, isVisited, isActive) => {
   });
 };
 
+const FIT_OPTIONS = { padding: [40, 40], maxZoom: 12 };
+
+// 전체 여정이 한눈에 들어오도록 맞춤: 최초 진입과 모바일 지도 열기 시점.
+// bounds는 ref로만 읽어서, 여정을 편집하는 도중에 화면이 튀지 않게 합니다.
+const FitAllOnOpen = ({ bounds, showMobileMap }) => {
+  const map = useMap();
+  const boundsRef = useRef(bounds);
+
+  useEffect(() => {
+    boundsRef.current = bounds;
+  }, [bounds]);
+
+  useEffect(() => {
+    if (!boundsRef.current) return;
+    map.invalidateSize();
+    map.fitBounds(boundsRef.current, FIT_OPTIONS);
+  }, [map, showMobileMap]);
+
+  return null;
+};
+
 // Map controller to handle auto-panning
 const MapController = ({ activePoint }) => {
   const map = useMap();
@@ -63,18 +84,39 @@ const Map = ({ itinerary, activePoint, setActivePoint, visitedPoints, selectedRo
   // Standard OSM: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
   // CartoDB Voyager (Beautiful, good localization): 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
 
+  const mapRef = useRef(null);
+
   // Extract selected points coordinates for the polyline
   // 마커 배지에 일차 숫자를 찍으려면 상위 day 객체의 값을 각 포인트에 붙여야 합니다.
-  const allPoints = itinerary.flatMap(day => day.points.map(point => ({ ...point, day: day.day })));
+  const allPoints = useMemo(
+    () => itinerary.flatMap(day => day.points.map(point => ({ ...point, day: day.day }))),
+    [itinerary]
+  );
+  const bounds = useMemo(() => {
+    const coords = allPoints.map(p => p.coords);
+    return coords.length ? L.latLngBounds(coords) : null;
+  }, [allPoints]);
+
   const polylineCoords = allPoints
     .filter(p => selectedRoutePoints.includes(p.id))
     .map(p => p.coords);
 
   return (
     <div className={`map-container ${showMobileMap ? 'mobile-visible' : ''}`} style={{ zIndex: 1 }}>
+      {bounds && (
+        <button
+          className="map-fit-btn"
+          onClick={() => mapRef.current?.fitBounds(bounds, FIT_OPTIONS)}
+          title="전체 여정 보기"
+        >
+          <Expand size={16} /> 전체 여정
+        </button>
+      )}
       <MapContainer 
+        ref={mapRef}
         center={[36.5, 127.5]} 
         zoom={7} 
+        zoomSnap={0.25}
         style={{ width: '100%', height: '100%', zIndex: 1 }}
         zoomControl={false}
       >
@@ -122,6 +164,7 @@ const Map = ({ itinerary, activePoint, setActivePoint, visitedPoints, selectedRo
             </Marker>
           );
         })}
+        <FitAllOnOpen bounds={bounds} showMobileMap={showMobileMap} />
         <MapController activePoint={activePoint} />
       </MapContainer>
     </div>
