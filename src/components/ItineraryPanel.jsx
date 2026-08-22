@@ -371,10 +371,10 @@ const ItineraryPanel = ({
                         
                         {photos[point.id] && photos[point.id].length > 0 && (
                           <div className="album-gallery">
-                            {photos[point.id].map((photoData, idx) => (
-                              <div key={idx} className="photo-card">
-                                <img src={photoData} alt={`추억 ${idx+1}`} />
-                                <button className="btn-delete-photo" onClick={() => deletePhoto(point.id, idx)}>
+                            {photos[point.id].map((photo, idx) => (
+                              <div key={photo.id} className="photo-card">
+                                <img src={photo.url} alt={`추억 ${idx+1}`} loading="lazy" />
+                                <button className="btn-delete-photo" onClick={() => deletePhoto(point.id, photo.id)}>
                                   <Trash2 size={12} />
                                 </button>
                               </div>
