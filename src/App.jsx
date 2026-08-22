@@ -1,11 +1,30 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Map from './components/Map';
 import ItineraryPanel from './components/ItineraryPanel';
 import SettingsModal from './components/SettingsModal';
+import AboutPage from './pages/AboutPage';
+import PrivacyPage from './pages/PrivacyPage';
 import { useSharedTrip } from './hooks/useSharedTrip';
 import { Map as MapIcon, X, AlertTriangle } from 'lucide-react';
 
+// 라우터 라이브러리 없이도 주소로 공유되는 정적 페이지를 두기 위한 최소한의 해시 라우팅입니다.
+const readRoute = () => window.location.hash.replace(/^#\/?/, '');
+
 function App() {
+  const [route, setRoute] = useState(readRoute);
+
+  useEffect(() => {
+    const onHashChange = () => setRoute(readRoute());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  if (route === 'about') return <AboutPage />;
+  if (route === 'privacy') return <PrivacyPage />;
+  return <TripApp />;
+}
+
+function TripApp() {
   const [activePoint, setActivePoint] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileMap, setShowMobileMap] = useState(false);
