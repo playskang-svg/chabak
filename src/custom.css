@@ -414,3 +414,35 @@
 }
 .qa-status { color: #6B7280; }
 .qa-error { color: #B91C1C; }
+
+/* ── 사진 저장 버튼 ────────────────────────── */
+.btn-save-photo {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-save-photo:hover { background: rgba(59, 130, 246, 0.9); }
+
+/* 터치 기기에는 hover가 없어 버튼이 영영 안 보입니다. 마우스가 있을 때만 숨겼다 보여줍니다. */
+@media (hover: hover) {
+  .btn-save-photo { opacity: 0; transition: opacity 0.2s, background 0.2s; }
+  .photo-card:hover .btn-save-photo { opacity: 1; }
+}
+@media (hover: none) {
+  /* 손가락으로 누를 수 있게 항상 보이고, 조금 더 큽니다. */
+  .btn-delete-photo,
+  .btn-save-photo {
+    opacity: 1;
+    padding: 9px;
+  }
+}
