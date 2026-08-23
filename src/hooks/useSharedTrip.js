@@ -20,6 +20,8 @@ const LOAD_TIMEOUT = 8000;
 const REFRESH_INTERVAL = 45000;
 const PHOTO_MAX_WIDTH = 1200;
 const AI_PASSWORD_KEY = 'chabakAiPassword';
+// '저장됨' 표시를 띄워 두는 시간
+const SAVED_BADGE_MS = 2500;
 
 // 설정 페이지에서 갈아끼울 수 있는 값들. AI가 일정을 만들면 여기도 함께 바뀝니다.
 export const DEFAULT_CONFIG = {
@@ -67,6 +69,8 @@ export function useSharedTrip() {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [placeAnswers, setPlaceAnswers] = useState({});
   const [status, setStatus] = useState('loading');
+  // 항목별 저장 상태: 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState({});
   const [errorMessage, setErrorMessage] = useState(null);
 
   // 콜백에서 최신 값을 읽기 위한 거울. 렌더 결과에는 쓰지 않습니다.
@@ -78,6 +82,22 @@ export function useSharedTrip() {
   // 저장 대기 중인 메모는 다른 사람의 변경을 받아도 덮어쓰지 않습니다.
   const pendingMemos = useRef(new Set());
   const memoTimers = useRef({});
+  const badgeTimers = useRef({});
+
+  // 저장 진행 상태를 화면에 알립니다. 완료 표시는 잠깐 보여주고 스스로 사라집니다.
+  const markSave = useCallback((key, value) => {
+    clearTimeout(badgeTimers.current[key]);
+    setSaveStatus(prev => ({ ...prev, [key]: value }));
+    if (value !== 'saved') return;
+    badgeTimers.current[key] = setTimeout(() => {
+      setSaveStatus(prev => {
+        if (prev[key] !== 'saved') return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }, SAVED_BADGE_MS);
+  }, []);
 
   const loadDocs = useCallback(async () => {
     const { data, error } = await supabase.from('chabak_trip_docs').select('key, data');
@@ -219,7 +239,11 @@ export function useSharedTrip() {
 
   useEffect(() => {
     const timers = memoTimers.current;
-    return () => { Object.values(timers).forEach(clearTimeout); };
+    const badges = badgeTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+      Object.values(badges).forEach(clearTimeout);
+    };
   }, []);
 
   const report = useCallback((error, what) => {
@@ -256,41 +280,50 @@ export function useSharedTrip() {
   }, [saveDoc]);
 
   const updateMemo = useCallback((pointId, text) => {
+    const key = `memo:${pointId}`;
     setMemos(prev => ({ ...prev, [pointId]: text }));
     pendingMemos.current.add(pointId);
+    markSave(key, 'saving');
     clearTimeout(memoTimers.current[pointId]);
     memoTimers.current[pointId] = setTimeout(async () => {
       const { error } = await supabase
         .from('chabak_memos')
         .upsert({ point_id: pointId, body: text, updated_at: new Date().toISOString() }, { onConflict: 'point_id' });
       pendingMemos.current.delete(pointId);
+      markSave(key, error ? 'error' : 'saved');
       report(error, '메모');
     }, MEMO_SAVE_DELAY);
-  }, [report]);
+  }, [report, markSave]);
 
   const addChecklistItem = useCallback(async (text, category) => {
     const item = { id: crypto.randomUUID(), text, completed: false, category };
     setChecklist(prev => [...prev, item]);
+    markSave('checklist', 'saving');
     const { error } = await supabase.from('chabak_checklist_items').insert(item);
+    markSave('checklist', error ? 'error' : 'saved');
     report(error, '준비물');
-  }, [report]);
+  }, [report, markSave]);
 
   const toggleChecklistItem = useCallback(async (id) => {
     const item = (latest.current.checklist ?? []).find(entry => entry.id === id);
     if (!item) return;
     setChecklist(prev => prev.map(entry => (entry.id === id ? { ...entry, completed: !entry.completed } : entry)));
+    markSave('checklist', 'saving');
     const { error } = await supabase
       .from('chabak_checklist_items')
       .update({ completed: !item.completed })
       .eq('id', id);
+    markSave('checklist', error ? 'error' : 'saved');
     report(error, '준비물');
-  }, [report]);
+  }, [report, markSave]);
 
   const deleteChecklistItem = useCallback(async (id) => {
     setChecklist(prev => prev.filter(entry => entry.id !== id));
+    markSave('checklist', 'saving');
     const { error } = await supabase.from('chabak_checklist_items').delete().eq('id', id);
+    markSave('checklist', error ? 'error' : 'saved');
     report(error, '준비물');
-  }, [report]);
+  }, [report, markSave]);
 
   const updatePoint = useCallback((dayIndex, pointId, newName, newDesc) => {
     const next = (latest.current.itineraryState ?? []).map((day, idx) =>
@@ -414,6 +447,7 @@ export function useSharedTrip() {
 
   return {
     status,
+    saveStatus,
     errorMessage,
     config,
     saveConfig,

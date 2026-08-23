@@ -70,6 +70,7 @@ function TripApp() {
         askAboutPlace={trip.askAboutPlace}
         aiBusy={trip.aiBusy}
         onOpenSettings={() => setShowSettings(true)}
+        saveStatus={trip.saveStatus}
         itinerary={trip.itineraryState}
         activePoint={activePoint}
         setActivePoint={setActivePoint}
