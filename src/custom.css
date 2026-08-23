@@ -629,3 +629,82 @@
   flex-wrap: wrap;
   gap: 4px;
 }
+
+/* ── 구간 안내 (다음 경유지까지) ───────────── */
+.route-leg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 10px 22px;
+  font-size: 0.78rem;
+  color: #6B7280;
+  line-height: 1.4;
+}
+.route-leg svg {
+  flex-shrink: 0;
+  color: #9CA3AF;
+}
+.route-leg strong {
+  font-weight: 700;
+  color: #374151;
+}
+
+/* ── 모바일에서 헤더 높이 줄이기 ───────────── */
+@media (max-width: 768px) {
+  .panel-header {
+    padding: 12px 14px 14px 14px;
+  }
+  /* 제목이 길어도 두 줄로 늘어나지 않게 합니다. */
+  .panel-header h1 {
+    display: block;
+    min-width: 0;
+    font-size: 1.02rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* 부제는 첫 화면에서 자리만 차지해 숨깁니다. 설정에서는 그대로 남아 있습니다. */
+  .panel-header > p {
+    display: none;
+  }
+  /* 진행률: 라벨 줄을 없애고 막대와 숫자를 한 줄에 둡니다. */
+  .progress-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .progress-texts {
+    order: 2;
+    margin-bottom: 0;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+  .progress-texts span:first-child {
+    display: none;
+  }
+  .progress-bar-bg {
+    order: 1;
+    height: 6px;
+  }
+  .car-icon {
+    top: -11px;
+    font-size: 16px;
+  }
+  .search-bar {
+    margin-top: 10px;
+  }
+  .search-bar input {
+    padding: 8px 12px 8px 34px;
+    font-size: 0.9rem;
+  }
+  .search-icon {
+    left: 10px;
+    width: 16px;
+    height: 16px;
+  }
+  .header-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+}

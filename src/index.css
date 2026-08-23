@@ -178,6 +178,7 @@ body {
 .search-bar {
   position: relative;
   width: 100%;
+  margin-top: 16px;
 }
 
 .search-icon {
