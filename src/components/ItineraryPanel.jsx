@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import Footer from './Footer';
+import SaveState from './SaveState';
 import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack, Menu, X, Send, MessageCircleQuestion, Download } from 'lucide-react';
 
 // 준비물 원본은 UpNote 공유 노트에서 관리합니다.
@@ -9,6 +10,7 @@ const EV_CHARGER_URL = 'https://map.kakao.com/?q=전기차충전소';
 
 const ItineraryPanel = ({ 
   config,
+  saveStatus,
   placeAnswers,
   askAboutPlace,
   aiBusy,
@@ -203,7 +205,10 @@ const ItineraryPanel = ({
         {/* Checklist Section */}
         {showChecklist && (
           <div className="checklist-container">
-            <h3 className="checklist-title">🎒 짐 챙기기 체크리스트</h3>
+            <h3 className="checklist-title">
+              🎒 짐 챙기기 체크리스트
+              <SaveState status={saveStatus.checklist} />
+            </h3>
             
             <div className="checklist-tabs">
               <button 
@@ -359,7 +364,10 @@ const ItineraryPanel = ({
                         {(hasMemo || isEditingMemo) ? (
                           <div className="memo-content">
                             <div className="memo-header">
-                              <span className="memo-title"><Edit3 size={12} /> 장소 메모</span>
+                              <span className="memo-title">
+                                <Edit3 size={12} /> 장소 메모
+                                <SaveState status={saveStatus[`memo:${point.id}`]} />
+                              </span>
                               <button className="memo-edit-btn" onClick={() => setEditingMemoId(isEditingMemo ? null : point.id)}>
                                 {isEditingMemo ? '닫기' : '수정'}
                               </button>
