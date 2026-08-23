@@ -17,6 +17,8 @@ const SettingsModal = ({ config, saveConfig, aiPassword, setAiPassword, aiBusy, 
   const [savingBranding, setSavingBranding] = useState(false);
   const [brandingResult, setBrandingResult] = useState(null);
   const [planResult, setPlanResult] = useState(null);
+  // 되돌릴 수 없는 동작이라 한 번 더 확인받습니다.
+  const [confirming, setConfirming] = useState(false);
 
   const generating = aiBusy === 'plan';
 
@@ -31,6 +33,7 @@ const SettingsModal = ({ config, saveConfig, aiPassword, setAiPassword, aiBusy, 
   };
 
   const handleGenerate = async () => {
+    setConfirming(false);
     setPlanResult(null);
     setAiPassword(password);
     try {
@@ -77,7 +80,7 @@ const SettingsModal = ({ config, saveConfig, aiPassword, setAiPassword, aiBusy, 
               <textarea
                 rows={6}
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                onChange={(e) => { setPrompt(e.target.value); setConfirming(false); }}
                 placeholder={PROMPT_PLACEHOLDER}
               />
             </label>
@@ -99,9 +102,28 @@ const SettingsModal = ({ config, saveConfig, aiPassword, setAiPassword, aiBusy, 
               </span>
             </div>
 
-            <button className="btn-primary" onClick={handleGenerate} disabled={generating || !prompt.trim()}>
-              <Sparkles size={16} /> {generating ? '만드는 중… (1분 정도 걸립니다)' : 'AI로 일정 생성'}
-            </button>
+            {confirming ? (
+              <div className="settings-confirm">
+                <p>
+                  지금 일정 <strong>전체를 지우고</strong> 새로 만듭니다. 되돌릴 수 없습니다.
+                  그래도 진행할까요?
+                </p>
+                <div className="settings-confirm-actions">
+                  <button className="btn-secondary" onClick={() => setConfirming(false)}>취소</button>
+                  <button className="btn-danger" onClick={handleGenerate}>
+                    <Sparkles size={16} /> 네, 새로 만들기
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="btn-primary"
+                onClick={() => { setPlanResult(null); setConfirming(true); }}
+                disabled={generating || !prompt.trim()}
+              >
+                <Sparkles size={16} /> {generating ? '만드는 중… (1분 정도 걸립니다)' : 'AI로 일정 생성'}
+              </button>
+            )}
             <Result result={planResult} />
           </section>
         </div>
