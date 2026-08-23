@@ -66,9 +66,6 @@ function TripApp() {
 
       <ItineraryPanel
         config={trip.config}
-        placeAnswers={trip.placeAnswers}
-        askAboutPlace={trip.askAboutPlace}
-        aiBusy={trip.aiBusy}
         onOpenSettings={() => setShowSettings(true)}
         saveStatus={trip.saveStatus}
         itinerary={trip.itineraryState}

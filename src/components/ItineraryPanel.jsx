@@ -1,19 +1,23 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import Footer from './Footer';
 import SaveState from './SaveState';
-import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack, Menu, X, Send, MessageCircleQuestion, Download } from 'lucide-react';
+import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack, Menu, X, Download } from 'lucide-react';
 
 // 준비물 원본은 UpNote 공유 노트에서 관리합니다.
 const PACKING_NOTE_URL = 'https://getupnote.com/share/notes/g7PMwusXenRBTR9rjTupYw2z7QU2/01A0269E-9438-753E-B8BF-A840C41BF3A6';
 
 const EV_CHARGER_URL = 'https://map.kakao.com/?q=전기차충전소';
 
+const GOOGLE_SEARCH_URL = 'https://www.google.com/search?q=';
+
+// "[선택] 강릉 …", "충주 종댕이길 (충주호)" 처럼 붙은 표시는 검색어에서 걸러 냅니다.
+// 괄호 안 지명은 검색에 도움이 되므로 괄호만 지우고 글자는 남깁니다.
+const placeKeyword = (name) =>
+  name.replace(/\[[^\]]*\]/g, ' ').replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+
 const ItineraryPanel = ({ 
   config,
   saveStatus,
-  placeAnswers,
-  askAboutPlace,
-  aiBusy,
   onOpenSettings,
   itinerary,
   activePoint, 
@@ -50,8 +54,7 @@ const ItineraryPanel = ({
 
   // 헤더 액션은 버튼을 늘리는 대신 메뉴 하나로 모았습니다.
   const [menuOpen, setMenuOpen] = useState(false);
-  const [qaDrafts, setQaDrafts] = useState({});
-  const [qaErrors, setQaErrors] = useState({});
+  const [searchDrafts, setSearchDrafts] = useState({});
 
   // 사진 주소가 다른 도메인이라 <a download>가 무시됩니다. 직접 받아서 파일로 넘겨야 합니다.
   const handleSavePhoto = async (photo, point, index) => {
@@ -74,17 +77,12 @@ const ItineraryPanel = ({
     }
   };
 
-  const handleAsk = async (event, point) => {
+  // 검색은 새 창에서 열립니다. 보고 있던 일정은 그대로 두고 결과만 따로 봅니다.
+  const handlePlaceSearch = (event, point) => {
     event.preventDefault();
-    const question = (qaDrafts[point.id] ?? '').trim();
-    if (!question) return;
-    setQaErrors(prev => ({ ...prev, [point.id]: null }));
-    try {
-      await askAboutPlace(point, question);
-      setQaDrafts(prev => ({ ...prev, [point.id]: '' }));
-    } catch (err) {
-      setQaErrors(prev => ({ ...prev, [point.id]: err.message }));
-    }
+    const keyword = (searchDrafts[point.id] ?? '').trim();
+    const query = [placeKeyword(point.name), keyword].filter(Boolean).join(' ');
+    window.open(`${GOOGLE_SEARCH_URL}${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
   };
 
   // Scroll to active item when selected from map
@@ -443,33 +441,30 @@ const ItineraryPanel = ({
                       </div>
                     )}
 
-                    {/* 이 장소에 대한 질문. 답은 서버에서 만들어 모두에게 공유됩니다. */}
+                    {/* 이 장소를 구글에서 바로 찾아봅니다. 결과는 새 창에서 열립니다. */}
                     {!isEditingThisPoint && (
-                      <div className="place-qa-section" onClick={(e) => e.stopPropagation()}>
-                        <span className="qa-title"><MessageCircleQuestion size={14} /> 이 곳 궁금한 점</span>
+                      <div className="place-search-section" onClick={(e) => e.stopPropagation()}>
+                        <span className="place-search-title">
+                          <Search size={14} /> 이 곳 검색해 보기
+                        </span>
 
-                        {(placeAnswers[point.id] ?? []).map((entry) => (
-                          <div key={entry.id} className="qa-entry">
-                            <p className="qa-question">Q. {entry.question}</p>
-                            <p className="qa-answer">{entry.answer}</p>
-                          </div>
-                        ))}
-
-                        <form className="qa-form" onSubmit={(e) => handleAsk(e, point)}>
+                        <form className="place-search-form" onSubmit={(e) => handlePlaceSearch(e, point)}>
                           <input
                             type="text"
-                            placeholder="예: 주차 요금 있나요?"
-                            value={qaDrafts[point.id] ?? ''}
-                            onChange={(e) => setQaDrafts((prev) => ({ ...prev, [point.id]: e.target.value }))}
-                            disabled={aiBusy === `ask:${point.id}`}
+                            placeholder="예: 근처 맛집, 주차, 반려동물"
+                            value={searchDrafts[point.id] ?? ''}
+                            onChange={(e) => setSearchDrafts((prev) => ({ ...prev, [point.id]: e.target.value }))}
                           />
-                          <button type="submit" disabled={aiBusy === `ask:${point.id}`} title="질문하기">
-                            <Send size={14} />
+                          <button type="submit" title="구글에서 새 창으로 검색">
+                            <ExternalLink size={14} /> 구글 검색
                           </button>
                         </form>
 
-                        {aiBusy === `ask:${point.id}` && <p className="qa-status">답을 찾는 중…</p>}
-                        {qaErrors[point.id] && <p className="qa-error">{qaErrors[point.id]}</p>}
+                        <p className="place-search-hint">
+                          {placeKeyword(point.name)}
+                          {(searchDrafts[point.id] ?? '').trim() && ` ${(searchDrafts[point.id] ?? '').trim()}`}
+                          {' '}— 새 창에서 결과가 열립니다.
+                        </p>
                       </div>
                     )}
 

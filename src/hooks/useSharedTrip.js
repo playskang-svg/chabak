@@ -67,7 +67,6 @@ export function useSharedTrip() {
   const [checklist, setChecklist] = useState([]);
   const [photos, setPhotos] = useState({});
   const [config, setConfig] = useState(DEFAULT_CONFIG);
-  const [placeAnswers, setPlaceAnswers] = useState({});
   const [status, setStatus] = useState('loading');
   // 항목별 저장 상태: 'saving' | 'saved' | 'error'
   const [saveStatus, setSaveStatus] = useState({});
@@ -149,19 +148,6 @@ export function useSharedTrip() {
     setPhotos(grouped);
   }, []);
 
-  const loadAnswers = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('chabak_place_answers')
-      .select('id, point_id, question, answer')
-      .order('created_at');
-    if (error) throw error;
-    const grouped = {};
-    (data ?? []).forEach(row => {
-      (grouped[row.point_id] ??= []).push(row);
-    });
-    setPlaceAnswers(grouped);
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -169,7 +155,7 @@ export function useSharedTrip() {
 
     const loadAll = async () => {
       const [docs, , , items] = await Promise.all([
-        loadDocs(), loadMemos(), loadVisits(), loadChecklist(), loadPhotos(), loadAnswers(),
+        loadDocs(), loadMemos(), loadVisits(), loadChecklist(), loadPhotos(),
       ]);
       if (cancelled) return;
       setStatus('ready');
@@ -203,12 +189,12 @@ export function useSharedTrip() {
       .finally(() => clearTimeout(timer));
 
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos, loadAnswers]);
+  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos]);
 
   const refreshAll = useCallback(() => {
-    Promise.all([loadDocs(), loadMemos(), loadVisits(), loadChecklist(), loadPhotos(), loadAnswers()])
+    Promise.all([loadDocs(), loadMemos(), loadVisits(), loadChecklist(), loadPhotos()])
       .catch(() => {});
-  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos, loadAnswers]);
+  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos]);
 
   // 동행자가 바꾼 내용을 새로고침 없이 받아옵니다.
   useEffect(() => {
@@ -220,11 +206,10 @@ export function useSharedTrip() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chabak_visits' }, reload(loadVisits))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chabak_checklist_items' }, reload(loadChecklist))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chabak_photos' }, reload(loadPhotos))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chabak_place_answers' }, reload(loadAnswers))
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos, loadAnswers]);
+  }, [loadDocs, loadMemos, loadVisits, loadChecklist, loadPhotos]);
 
   // 실시간 연결이 막힌 망에서도 화면이 뒤처지지 않도록, 보고 있는 동안만 주기적으로 다시 읽습니다.
   useEffect(() => {
@@ -422,41 +407,16 @@ export function useSharedTrip() {
     }
   }, [callAi, aiPassword, refreshAll]);
 
-  const askAboutPlace = useCallback(async (point, question) => {
-    setAiBusy(`ask:${point.id}`);
-    try {
-      const result = await callAi({
-        action: 'ask',
-        password: aiPassword,
-        pointId: point.id,
-        pointName: point.name,
-        pointDesc: point.desc,
-        question,
-      });
-      if (result?.answer) {
-        setPlaceAnswers(prev => ({
-          ...prev,
-          [point.id]: [...(prev[point.id] ?? []), result.answer],
-        }));
-      }
-      return result;
-    } finally {
-      setAiBusy(null);
-    }
-  }, [callAi, aiPassword]);
-
   return {
     status,
     saveStatus,
     errorMessage,
     config,
     saveConfig,
-    placeAnswers,
     aiPassword,
     setAiPassword,
     aiBusy,
     generatePlan,
-    askAboutPlace,
     dismissError: useCallback(() => setErrorMessage(null), []),
     itineraryState,
     selectedRoutePoints,

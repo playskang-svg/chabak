@@ -97,7 +97,7 @@ const SettingsModal = ({ config, saveConfig, aiPassword, setAiPassword, aiBusy, 
             <div className="settings-warning">
               <AlertTriangle size={16} />
               <span>
-                새로 만들면 <strong>기존 일정·메모·방문 도장·준비물·질문 기록이 지워집니다.</strong>{' '}
+                새로 만들면 <strong>기존 일정·메모·방문 도장·준비물이 지워집니다.</strong>{' '}
                 올린 사진은 지워지지 않습니다.
               </span>
             </div>
