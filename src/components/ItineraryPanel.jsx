@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import Footer from './Footer';
 import SaveState from './SaveState';
-import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack, Menu, X, Download } from 'lucide-react';
+import { legBetween, formatKm, formatMinutes } from '../utils/route';
+import { Info, ExternalLink, Navigation, Search, CheckCircle, ListTodo, Edit3, Plus, Trash2, Zap, Settings, Save, Backpack, Menu, X, Download, CornerDownRight } from 'lucide-react';
 
 // 준비물 원본은 UpNote 공유 노트에서 관리합니다.
 const PACKING_NOTE_URL = 'https://getupnote.com/share/notes/g7PMwusXenRBTR9rjTupYw2z7QU2/01A0269E-9438-753E-B8BF-A840C41BF3A6';
@@ -117,6 +118,21 @@ const ItineraryPanel = ({
     }).filter(day => day.points.length > 0);
   }, [searchQuery, memos, itinerary]);
 
+  // 경로에 포함된 장소만 순서대로 이어, 각 장소에서 다음 장소까지의 거리와 시간을 구합니다.
+  const legs = useMemo(() => {
+    const chosen = itinerary
+      .flatMap(day => day.points)
+      .filter(point => selectedRoutePoints.includes(point.id));
+
+    const result = {};
+    chosen.forEach((point, index) => {
+      const next = chosen[index + 1];
+      if (!next) return;
+      result[point.id] = { next, ...legBetween(point.coords, next.coords) };
+    });
+    return result;
+  }, [itinerary, selectedRoutePoints]);
+
   const handleAddChecklist = (e) => {
     e.preventDefault();
     if (newChecklistText.trim()) {
@@ -188,7 +204,7 @@ const ItineraryPanel = ({
           </div>
         </div>
 
-        <div className="search-bar" style={{ marginTop: '16px' }}>
+        <div className="search-bar">
           <Search size={18} className="search-icon" />
           <input 
             type="text" 
@@ -271,10 +287,12 @@ const ItineraryPanel = ({
                 const isSelected = selectedRoutePoints.includes(point.id);
                 const hasMemo = memos[point.id] && memos[point.id].trim().length > 0;
                 const isEditingMemo = editingMemoId === point.id;
-                
+                // 검색 중에는 앞뒤 장소가 걸러져 있어 구간 안내가 맞지 않습니다.
+                const leg = searchQuery.trim() ? null : legs[point.id];
+
                 return (
+                  <React.Fragment key={point.id}>
                   <div 
-                    key={point.id}
                     ref={(el) => (itemRefs.current[point.id] = el)}
                     className={`point-card type-${point.type} ${activePoint?.id === point.id ? 'active' : ''} ${!isSelected ? 'unselected-card' : ''} ${isVisited ? 'visited-dimmed' : ''}`}
                     onClick={() => !isEditingThisPoint && setActivePoint(point)}
@@ -521,6 +539,18 @@ const ItineraryPanel = ({
                       );
                     })()}
                   </div>
+
+                  {leg && (
+                    <div className="route-leg" title="직선거리로 어림한 값입니다. 실제 도로 사정에 따라 달라집니다.">
+                      <CornerDownRight size={13} />
+                      <span>
+                        {leg.next.name}까지 약 <strong>{formatKm(leg.km)}</strong>
+                        {' · '}
+                        <strong>{formatMinutes(leg.minutes)}</strong>
+                      </span>
+                    </div>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </div>
